@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meow Chat</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .room-item { position: relative; }
+    .room-delete-btn {
+      opacity: 0;
+      background: none; border: none; cursor: pointer;
+      color: var(--overlay1); padding: 3px 5px; border-radius: 5px;
+      transition: all var(--transition);
+      margin-left: auto; flex-shrink: 0;
+      display: flex; align-items: center;
+      font-size: 0.8rem;
+    }
+    .room-item:hover .room-delete-btn { opacity: 1; }
+    .room-delete-btn:hover { color: var(--red); background: color-mix(in srgb, var(--red) 12%, transparent); }
+
+    .confirm-modal .modal-body { font-size: 0.9rem; color: var(--subtext0); margin-bottom: 0; }
+    .confirm-modal .room-name-highlight { color: var(--text); font-weight: 500; }
+    .confirm-modal .warning-text { font-size: 0.82rem; color: var(--overlay1); margin-top: 0.4rem; }
+    .btn-danger { background: color-mix(in srgb, var(--red) 15%, transparent); color: var(--red); border: 1.5px solid color-mix(in srgb, var(--red) 30%, transparent); }
+    .btn-danger:hover { background: var(--red); color: var(--base); }
+  </style>
+</head>
+<body>
+
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+<div class="chat-layout">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">💬</div>
+      <span class="sidebar-title">Meow Chat</span>
+      <button class="sidebar-close-btn" onclick="closeSidebar()" title="Закрыть">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">
+        Комнаты
+        <button class="sidebar-new-btn" title="Новая комната" onclick="openModal()">+</button>
+      </div>
+    </div>
+
+    <div class="rooms-list" id="rooms-list"></div>
+
+    <div class="sidebar-user">
+      <div class="user-avatar" id="user-avatar">?</div>
+      <div class="user-info">
+        <div class="user-name" id="user-name">—</div>
+        <div class="user-status">онлайн</div>
+      </div>
+      <button class="logout-btn" title="Выйти" onclick="logout()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16 17 21 12 16 7"/>
+          <line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+      </button>
+    </div>
+  </aside>
+
+  <main class="chat-main">
+
+    <div class="no-room" id="no-room" style="position:relative">
+      <button class="mobile-menu-btn" id="mobile-menu-btn-empty" onclick="openSidebar()" style="position:absolute;top:1rem;left:1rem;display:none">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
+      <div class="no-room-icon">💬</div>
+      <h2>Выберите комнату</h2>
+      <p>Или создайте новую, нажав +</p>
+      <button class="btn btn-primary" onclick="openSidebar()" style="display:none" id="open-sidebar-btn">
+        Открыть список комнат
+      </button>
+    </div>
+
+    <div id="chat-view" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+      <div class="chat-header">
+        <button class="mobile-menu-btn" onclick="openSidebar()" title="Комнаты">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+          </svg>
+        </button>
+        <div class="online-dot"></div>
+        <div class="chat-header-info">
+          <div class="chat-header-name" id="room-title">—</div>
+          <div class="chat-header-meta" id="room-meta">Загрузка...</div>
+        </div>
+      </div>
+
+      <div class="messages-container" id="messages">
+        <div class="empty-state" id="empty-state">
+          <div class="empty-state-icon">🌙</div>
+          <div class="empty-state-text">Сообщений пока нет. Начните общение!</div>
+        </div>
+      </div>
+
+      <div class="chat-input-area">
+        <div class="chat-input-wrap">
+          <textarea id="message-input" placeholder="Написать сообщение..." rows="1"></textarea>
+          <button class="send-btn" id="send-btn" title="Отправить (Enter)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"/>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h3>Новая комната</h3>
+    <div class="form-group">
+      <label class="form-label">Название</label>
+      <input type="text" id="room-name-input" placeholder="например: general">
+    </div>
+    <div class="alert alert-error" id="modal-alert"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Отмена</button>
+      <button class="btn btn-primary" onclick="createRoom()">Создать</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="confirm-modal">
+  <div class="modal confirm-modal">
+    <h3>Удалить комнату?</h3>
+    <div class="modal-body">
+      <p>Комната <span class="room-name-highlight" id="confirm-room-name"></span> будет удалена.</p>
+      <p class="warning-text">Все сообщения в ней будут удалены безвозвратно.</p>
+    </div>
+    <div class="alert alert-error" id="confirm-alert"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeConfirmModal()">Отмена</button>
+      <button class="btn btn-danger" id="confirm-delete-btn" onclick="confirmDelete()">Удалить</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+<script src="ws-client.js"></script>
+<script>
+  const token    = localStorage.getItem('token');
+  const username = localStorage.getItem('username') || 'User';
+  if (!token) location.href = 'login.html';
+
+  const roomsList  = document.getElementById('rooms-list');
+  const messagesEl = document.getElementById('messages');
+  const emptyState = document.getElementById('empty-state');
+  const noRoom     = document.getElementById('no-room');
+  const chatView   = document.getElementById('chat-view');
+  const roomTitle  = document.getElementById('room-title');
+  const roomMeta   = document.getElementById('room-meta');
+  const msgInput   = document.getElementById('message-input');
+  const sendBtn    = document.getElementById('send-btn');
+  const sidebar    = document.getElementById('sidebar');
+  const overlay    = document.getElementById('sidebar-overlay');
+
+  document.getElementById('user-name').textContent   = username;
+  document.getElementById('user-avatar').textContent = username[0].toUpperCase();
+
+  function updateMobileUI() {
+    const isMobile = window.innerWidth <= 640;
+    document.getElementById('mobile-menu-btn-empty').style.display = isMobile ? 'flex' : 'none';
+    document.getElementById('open-sidebar-btn').style.display      = isMobile ? 'flex' : 'none';
+  }
+  updateMobileUI();
+  window.addEventListener('resize', updateMobileUI);
+
+  function openSidebar()  { sidebar.classList.add('mobile-open'); overlay.classList.add('open'); document.body.style.overflow = 'hidden'; }
+  function closeSidebar() { sidebar.classList.remove('mobile-open'); overlay.classList.remove('open'); document.body.style.overflow = ''; }
+
+  let currentRoomId   = null;
+  let currentRoomName = null;
+  let wsClient        = null;
+  let lastAuthor      = null;
+  let pendingDeleteId = null;
+  let pendingDeleteName = null;
+
+  async function loadRooms() {
+    try {
+      const rooms = await api.getRooms(token);
+      renderRooms(rooms);
+    } catch (e) {
+      if (e.status === 401) logout();
+      else roomsList.innerHTML = '<div style="padding:0.75rem;font-size:0.8rem;color:var(--red)">Не удалось загрузить комнаты</div>';
+    }
+  }
+
+  function renderRooms(rooms) {
+    roomsList.innerHTML = '';
+    if (!rooms.length) {
+      roomsList.innerHTML = '<div style="padding:0.5rem 0.75rem;font-size:0.8rem;color:var(--overlay0)">Нет комнат</div>';
+      return;
+    }
+    rooms.forEach(r => {
+      const el = document.createElement('div');
+      el.className = 'room-item' + (r.id === currentRoomId ? ' active' : '');
+      el.dataset.id = r.id;
+
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'room-icon';
+      nameSpan.textContent = '#';
+
+      const label = document.createElement('span');
+      label.style.flex = '1';
+      label.style.overflow = 'hidden';
+      label.style.textOverflow = 'ellipsis';
+      label.style.whiteSpace = 'nowrap';
+      label.textContent = r.name;
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'room-delete-btn';
+      delBtn.title = 'Удалить комнату';
+      delBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>';
+      delBtn.onclick = (e) => {
+        e.stopPropagation();
+        openConfirmModal(r.id, r.name);
+      };
+
+      el.appendChild(nameSpan);
+      el.appendChild(label);
+      el.appendChild(delBtn);
+      el.onclick = () => { joinRoom(r.id, r.name); closeSidebar(); };
+      roomsList.appendChild(el);
+    });
+  }
+
+  function openConfirmModal(roomId, roomName) {
+    pendingDeleteId   = roomId;
+    pendingDeleteName = roomName;
+    document.getElementById('confirm-room-name').textContent = roomName;
+    document.getElementById('confirm-alert').classList.remove('show');
+    document.getElementById('confirm-modal').classList.add('open');
+  }
+  function closeConfirmModal() {
+    document.getElementById('confirm-modal').classList.remove('open');
+    pendingDeleteId = null;
+    pendingDeleteName = null;
+  }
+  document.getElementById('confirm-modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('confirm-modal')) closeConfirmModal();
+  });
+
+  async function confirmDelete() {
+    if (!pendingDeleteId) return;
+    const btn = document.getElementById('confirm-delete-btn');
+    btn.disabled = true;
+    btn.textContent = 'Удаляю...';
+    try {
+      await api.deleteRoom(token, pendingDeleteId);
+      if (pendingDeleteId === currentRoomId) {
+        if (wsClient) { wsClient.close(); wsClient = null; }
+        currentRoomId = null;
+        chatView.style.display = 'none';
+        noRoom.style.display   = 'flex';
+      }
+      closeConfirmModal();
+      await loadRooms();
+    } catch (e) {
+      showAlert(document.getElementById('confirm-alert'), e.message || 'Ошибка удаления', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Удалить';
+    }
+  }
+
+  async function joinRoom(roomId, roomName) {
+    if (currentRoomId === roomId) return;
+    if (wsClient) { wsClient.close(); wsClient = null; }
+
+    currentRoomId   = roomId;
+    currentRoomName = roomName;
+    lastAuthor      = null;
+
+    document.querySelectorAll('.room-item').forEach(el => {
+      el.classList.toggle('active', Number(el.dataset.id) === roomId);
+    });
+
+    noRoom.style.display   = 'none';
+    chatView.style.display = 'flex';
+    roomTitle.textContent  = '# ' + roomName;
+    roomMeta.textContent   = 'Загрузка истории...';
+    messagesEl.innerHTML   = '';
+    emptyState.style.display = 'flex';
+    messagesEl.appendChild(emptyState);
+
+    try {
+      const history = await api.getHistory(token, roomId);
+      if (history.length) {
+        emptyState.style.display = 'none';
+        history.forEach(m => appendMessage({ type: 'message', id: m.id, text: m.text, username: m.author.username, user_id: m.author.id, created_at: m.created_at }, true));
+      }
+      roomMeta.textContent = history.length + ' сообщений';
+    } catch { roomMeta.textContent = 'Не удалось загрузить историю'; }
+
+    wsClient = createWsClient({
+      token, roomId,
+      onMessage: (data) => {
+        if (data.type === 'message') {
+          emptyState.style.display = 'none';
+          appendMessage(data);
+          roomMeta.textContent = messagesEl.querySelectorAll('.message').length + ' сообщений';
+        } else if (data.type === 'system') {
+          appendSystem(data.text);
+        } else if (data.type === 'room_deleted') {
+          if (wsClient) { wsClient.close(); wsClient = null; }
+          currentRoomId = null;
+          chatView.style.display = 'none';
+          noRoom.style.display   = 'flex';
+          loadRooms();
+        }
+      },
+      onClose: () => { roomMeta.textContent = 'Соединение потеряно'; },
+    });
+
+    scrollToBottom();
+    msgInput.focus();
+  }
+
+  function appendMessage(data, isHistory = false) {
+    const isMe    = data.username === username;
+    const grouped = data.username === lastAuthor;
+    lastAuthor    = data.username;
+    const time = new Date(data.created_at).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' });
+    const el = document.createElement('div');
+    el.className = 'message' + (grouped ? ' grouped' : '');
+    el.innerHTML =
+      '<div class="message-header">' +
+        '<span class="message-author ' + (isMe ? 'is-me' : '') + '">' + escapeHtml(data.username) + '</span>' +
+        '<span class="message-time">' + time + '</span>' +
+      '</div>' +
+      '<div class="message-text">' + escapeHtml(data.text) + '</div>';
+    messagesEl.appendChild(el);
+    if (!isHistory) scrollToBottom();
+  }
+
+  function appendSystem(text) {
+    lastAuthor = null;
+    const el = document.createElement('div');
+    el.className = 'system-message';
+    el.textContent = text;
+    messagesEl.appendChild(el);
+    scrollToBottom();
+  }
+
+  function scrollToBottom() { messagesEl.scrollTop = messagesEl.scrollHeight; }
+
+  function sendMessage() {
+    const text = msgInput.value.trim();
+    if (!text || !wsClient) return;
+    wsClient.send({ text });
+    msgInput.value = '';
+    msgInput.style.height = 'auto';
+  }
+
+  sendBtn.onclick = sendMessage;
+  msgInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  });
+  msgInput.addEventListener('input', () => {
+    msgInput.style.height = 'auto';
+    msgInput.style.height = Math.min(msgInput.scrollHeight, 120) + 'px';
+  });
+
+  function openModal() {
+    document.getElementById('modal').classList.add('open');
+    setTimeout(() => document.getElementById('room-name-input').focus(), 50);
+  }
+  function closeModal() {
+    document.getElementById('modal').classList.remove('open');
+    document.getElementById('room-name-input').value = '';
+    document.getElementById('modal-alert').classList.remove('show');
+  }
+  document.getElementById('modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('modal')) closeModal();
+  });
+  document.getElementById('room-name-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') createRoom();
+    if (e.key === 'Escape') closeModal();
+  });
+
+  async function createRoom() {
+    const name  = document.getElementById('room-name-input').value.trim();
+    const alert = document.getElementById('modal-alert');
+    if (!name) { showAlert(alert, 'Введите название', 'error'); return; }
+    try {
+      const room = await api.createRoom(token, name);
+      closeModal();
+      await loadRooms();
+      joinRoom(room.id, room.name);
+    } catch (e) { showAlert(alert, e.message || 'Ошибка', 'error'); }
+  }
+
+  function logout() { localStorage.clear(); location.href = 'login.html'; }
+
+  createGlobalWsClient({
+    token,
+    onMessage: (data) => {
+      if (data.type === 'room_created') {
+        loadRooms();
+      } else if (data.type === 'room_deleted') {
+        if (data.room_id === currentRoomId) {
+          if (wsClient) { wsClient.close(); wsClient = null; }
+          currentRoomId = null;
+          chatView.style.display = 'none';
+          noRoom.style.display   = 'flex';
+        }
+        loadRooms();
+      }
+    },
+  });
+
+  loadRooms();
+</script>
+</body>
+</html>

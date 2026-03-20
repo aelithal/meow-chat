@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Регистрация — Meow Chat</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="auth-page">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="auth-logo-icon">💬</div>
+      <span class="auth-logo-text">Meow Chat</span>
+    </div>
+
+    <h1 class="auth-title">Создать аккаунт</h1>
+    <p class="auth-subtitle">Присоединяйтесь к чату прямо сейчас</p>
+
+    <div class="alert alert-error" id="alert-error"></div>
+    <div class="alert alert-success" id="alert-success"></div>
+
+    <div class="form-group">
+      <label class="form-label" for="username">Имя пользователя</label>
+      <input type="text" id="username" placeholder="только буквы и цифры" autocomplete="username">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="password">Пароль</label>
+      <input type="password" id="password" placeholder="минимум 6 символов" autocomplete="new-password">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="password2">Повторите пароль</label>
+      <input type="password" id="password2" placeholder="••••••••" autocomplete="new-password">
+    </div>
+
+    <button class="btn btn-primary" id="reg-btn" onclick="handleRegister()" style="width:100%;justify-content:center;margin-top:0.5rem">
+      Зарегистрироваться
+    </button>
+
+    <p class="auth-footer">
+      Уже есть аккаунт? <a href="login.html">Войти</a>
+    </p>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    if (localStorage.getItem('token')) location.href = 'chat.html';
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Enter') handleRegister();
+    });
+
+    async function handleRegister() {
+      const btn = document.getElementById('reg-btn');
+      const errAlert = document.getElementById('alert-error');
+      const okAlert  = document.getElementById('alert-success');
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+      const password2 = document.getElementById('password2').value;
+
+      errAlert.classList.remove('show');
+      okAlert.classList.remove('show');
+
+      if (!username || !password || !password2) {
+        showAlert(errAlert, 'Заполните все поля', 'error'); return;
+      }
+      if (password !== password2) {
+        showAlert(errAlert, 'Пароли не совпадают', 'error'); return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Создаю аккаунт...';
+
+      try {
+        await api.register(username, password);
+        showAlert(okAlert, 'Аккаунт создан! Перехожу на вход...', 'success');
+        setTimeout(() => location.href = 'login.html', 1200);
+      } catch (e) {
+        showAlert(errAlert, e.message || 'Ошибка регистрации', 'error');
+        btn.disabled = false;
+        btn.textContent = 'Зарегистрироваться';
+      }
+    }
+  </script>
+</body>
+</html>
